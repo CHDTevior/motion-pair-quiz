@@ -43,7 +43,7 @@ video { width: 100%; max-width: 100%; border-radius: 6px; background: #fff; bord
 .q p { margin: 0; }
 .q p span { display: block; color: var(--muted); font-size: 0.82rem; }
 .choices { display: flex; gap: 8px; }
-.choices button { min-width: 64px; min-height: 44px; font: 600 1.05rem var(--font-body); border-radius: 8px; border: 1.5px solid var(--line);
+.choices button { min-width: 64px; padding: 0 12px; min-height: 44px; font: 600 1.05rem var(--font-body); border-radius: 8px; border: 1.5px solid var(--line);
   background: var(--surface); color: var(--ink); cursor: pointer; }
 .choices button:hover { border-color: var(--accent); }
 .choices button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
@@ -68,6 +68,7 @@ td.num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; whit
 .pr .mine { font-size: 0.92rem; }
 .ours { color: var(--ours); font-weight: 600; }
 .other { color: var(--other); font-weight: 600; }
+.tie { color: var(--muted); font-weight: 600; }
 .pr button { align-self: flex-start; min-height: 34px; padding: 0 12px; font: 0.85rem var(--font-body); border-radius: 6px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; }
 textarea { width: 100%; min-height: 90px; font: 0.75rem var(--font-mono); background: var(--bg); color: var(--ink); border: 1px solid var(--line); border-radius: 6px; padding: 8px; }
 @media (max-width: 520px) { .q { grid-template-columns: 1fr; } }
@@ -81,7 +82,7 @@ textarea { width: 100%; min-height: 90px; font: 0.75rem var(--font-mono); backgr
     <div class="count" id="count">0 / 0 已完成</div>
   </header>
   <div class="bar" aria-hidden="true"><i id="bar"></i></div>
-  <p class="intro" id="intro">共 62 组，大约 15–20 分钟。每组两段动作（A 在左、B 在右）由同一句文字生成，视频会循环播放。看完后回答两个问题，凭第一感觉二选一，没有标准答案。键盘上 1/2 回答第一题、3/4 回答第二题、回车进入下一组。全部做完后，页面会告诉你每组里哪段是我们的方法、你选了多少次我们的方法。</p>
+  <p class="intro" id="intro">共 62 组，大约 15–20 分钟。每组两段动作（A 在左、B 在右）由同一句文字生成，视频会循环播放。看完后回答两个问题，凭第一感觉选，没有标准答案；两段实在分不出时再选“差不多”。键盘上 1/2/3 回答第一题（A / 差不多 / B）、4/5/6 回答第二题、回车进入下一组。全部做完后，页面会告诉你每组里哪段是我们的方法、你选了多少次我们的方法。</p>
 
   <section class="card" id="trial">
     <p class="prompt" id="prompt"><small>—</small>正在加载…</p>
@@ -90,6 +91,7 @@ textarea { width: 100%; min-height: 90px; font: 0.75rem var(--font-mono); backgr
       <p>哪段动作更自然、更像真人？<span>Which motion looks more natural?</span></p>
       <div class="choices" data-q="nat" role="group" aria-label="naturalness">
         <button type="button" id="nat-A" data-v="A" aria-pressed="false">A</button>
+        <button type="button" id="nat-T" data-v="T" aria-pressed="false">差不多</button>
         <button type="button" id="nat-B" data-v="B" aria-pressed="false">B</button>
       </div>
     </div>
@@ -97,6 +99,7 @@ textarea { width: 100%; min-height: 90px; font: 0.75rem var(--font-mono); backgr
       <p>哪段更符合文字描述？<span>Which matches the text better?</span></p>
       <div class="choices" data-q="txt" role="group" aria-label="text match">
         <button type="button" id="txt-A" data-v="A" aria-pressed="false">A</button>
+        <button type="button" id="txt-T" data-v="T" aria-pressed="false">差不多</button>
         <button type="button" id="txt-B" data-v="B" aria-pressed="false">B</button>
       </div>
     </div>
@@ -142,7 +145,7 @@ textarea { width: 100%; min-height: 90px; font: 0.75rem var(--font-mono); backgr
 <script>
 (function () {
   "use strict";
-  var LS = "motion-pair-quiz-public-v1";
+  var LS = "motion-pair-quiz-public-v2";
   var KEYDATA = "bDUmNS1sNWQ1LTVncnthfmQ1OzV0NS01cTU7NVY1LTVxNTs1VTUtNXg1ajs1JTUtbDVkNS01Z3J7YX5kNTs1dDUtNXo1OzVWNS01ejU7NVU1LTV4NWo7NSQ1LWw1ZDUtNXpie2N+NTs1dDUtNXo1OzVWNS01eDU7NVU1LTV6NWo7NSM1LWw1ZDUtNXpie2N+NTs1dDUtNXE1OzVWNS01eDU7NVU1LTVxNWo7NSI1LWw1ZDUtNXpie2N+NTs1dDUtNXo1OzVWNS01ejU7NVU1LTV4NWo7NSE1LWw1ZDUtNWdye2F+ZDU7NXQ1LTVxNTs1VjUtNXg1OzVVNS01cTVqOzUgNS1sNWQ1LTV6YntjfjU7NXQ1LTV6NTs1VjUtNXg1OzVVNS01ejVqOzUvNS1sNWQ1LTV6YntjfjU7NXQ1LTVxNTs1VjUtNXE1OzVVNS01eDVqOzUuNS1sNWQ1LTV6YntjfjU7NXQ1LTV6NTs1VjUtNXo1OzVVNS01eDVqOzUmJzUtbDVkNS01Z3J7YX5kNTs1dDUtNXE1OzVWNS01eDU7NVU1LTVxNWo7NSYmNS1sNWQ1LTV6YntjfjU7NXQ1LTVxNTs1VjUtNXE1OzVVNS01eDVqOzUmJTUtbDVkNS01emJ7Y341OzV0NS01ejU7NVY1LTV4NTs1VTUtNXo1ajs1JiQ1LWw1ZDUtNXpie2N+NTs1dDUtNXo1OzVWNS01eDU7NVU1LTV6NWo7NSYjNS1sNWQ1LTV6YntjfjU7NXQ1LTVxNTs1VjUtNXg1OzVVNS01cTVqOzUmIjUtbDVkNS01emJ7Y341OzV0NS01cTU7NVY1LTV4NTs1VTUtNXE1ajs1JiE1LWw1ZDUtNWdye2F+ZDU7NXQ1LTVxNTs1VjUtNXE1OzVVNS01eDVqOzUmIDUtbDVkNS01Z3J7YX5kNTs1dDUtNXo1OzVWNS01eDU7NVU1LTV6NWo7NSYvNS1sNWQ1LTV6YntjfjU7NXQ1LTV6NTs1VjUtNXg1OzVVNS01ejVqOzUmLjUtbDVkNS01Z3J7YX5kNTs1dDUtNXo1OzVWNS01eDU7NVU1LTV6NWo7NSUnNS1sNWQ1LTVncnthfmQ1OzV0NS01ejU7NVY1LTV6NTs1VTUtNXg1ajs1JSY1LWw1ZDUtNWdye2F+ZDU7NXQ1LTVxNTs1VjUtNXE1OzVVNS01eDVqOzUlJTUtbDVkNS01Z3J7YX5kNTs1dDUtNXE1OzVWNS01cTU7NVU1LTV4NWo7NSUkNS1sNWQ1LTV6YntjfjU7NXQ1LTVxNTs1VjUtNXE1OzVVNS01eDVqOzUlIzUtbDVkNS01emJ7Y341OzV0NS01ejU7NVY1LTV6NTs1VTUtNXg1ajs1JSI1LWw1ZDUtNXpie2N+NTs1dDUtNXE1OzVWNS01eDU7NVU1LTVxNWo7NSUhNS1sNWQ1LTV6YntjfjU7NXQ1LTV6NTs1VjUtNXo1OzVVNS01eDVqOzUlIDUtbDVkNS01emJ7Y341OzV0NS01ejU7NVY1LTV4NTs1VTUtNXo1ajs1JS81LWw1ZDUtNWdye2F+ZDU7NXQ1LTVxNTs1VjUtNXg1OzVVNS01cTVqOzUlLjUtbDVkNS01Z3J7YX5kNTs1dDUtNXo1OzVWNS01ejU7NVU1LTV4NWo7NSQnNS1sNWQ1LTVncnthfmQ1OzV0NS01cTU7NVY1LTVxNTs1VTUtNXg1ajs1JCY1LWw1ZDUtNXpie2N+NTs1dDUtNXo1OzVWNS01ejU7NVU1LTV4NWo7NSQlNS1sNWQ1LTVncnthfmQ1OzV0NS01ejU7NVY1LTV4NTs1VTUtNXo1ajs1JCQ1LWw1ZDUtNWdye2F+ZDU7NXQ1LTVxNTs1VjUtNXE1OzVVNS01eDVqOzUkIzUtbDVkNS01emJ7Y341OzV0NS01cTU7NVY1LTVxNTs1VTUtNXg1ajs1JCI1LWw1ZDUtNWdye2F+ZDU7NXQ1LTVxNTs1VjUtNXg1OzVVNS01cTVqOzUkITUtbDVkNS01emJ7Y341OzV0NS01ejU7NVY1LTV6NTs1VTUtNXg1ajs1JCA1LWw1ZDUtNWdye2F+ZDU7NXQ1LTVxNTs1VjUtNXE1OzVVNS01eDVqOzUkLzUtbDVkNS01Z3J7YX5kNTs1dDUtNXo1OzVWNS01eDU7NVU1LTV6NWo7NSQuNS1sNWQ1LTV6YntjfjU7NXQ1LTVxNTs1VjUtNXg1OzVVNS01cTVqOzUjJzUtbDVkNS01emJ7Y341OzV0NS01cTU7NVY1LTV4NTs1VTUtNXE1ajs1IyY1LWw1ZDUtNWdye2F+ZDU7NXQ1LTV6NTs1VjUtNXo1OzVVNS01eDVqOzUjJTUtbDVkNS01Z3J7YX5kNTs1dDUtNXo1OzVWNS01ejU7NVU1LTV4NWo7NSMkNS1sNWQ1LTVncnthfmQ1OzV0NS01ejU7NVY1LTV6NTs1VTUtNXg1ajs1IyM1LWw1ZDUtNXpie2N+NTs1dDUtNXE1OzVWNS01cTU7NVU1LTV4NWo7NSMiNS1sNWQ1LTV6YntjfjU7NXQ1LTV2NTs1VjUtNX01OzVVNS01cDVqOzUjITUtbDVkNS01Z3J7YX5kNTs1dDUtNXE1OzVWNS01eDU7NVU1LTVxNWo7NSMgNS1sNWQ1LTV6YntjfjU7NXQ1LTV6NTs1VjUtNXg1OzVVNS01ejVqOzUjLzUtbDVkNS01Z3J7YX5kNTs1dDUtNXo1OzVWNS01eDU7NVU1LTV6NWo7NSMuNS1sNWQ1LTV6YntjfjU7NXQ1LTVxNTs1VjUtNXE1OzVVNS01eDVqOzUiJzUtbDVkNS01Z3J7YX5kNTs1dDUtNXo1OzVWNS01eDU7NVU1LTV6NWo7NSImNS1sNWQ1LTV6YntjfjU7NXQ1LTV6NTs1VjUtNXo1OzVVNS01eDVqOzUiJTUtbDVkNS01emJ7Y341OzV0NS01cTU7NVY1LTV4NTs1VTUtNXE1ajs1IiQ1LWw1ZDUtNWdye2F+ZDU7NXQ1LTV6NTs1VjUtNXg1OzVVNS01ejVqOzUiIzUtbDVkNS01Z3J7YX5kNTs1dDUtNXE1OzVWNS01eDU7NVU1LTVxNWo7NSIiNS1sNWQ1LTVncnthfmQ1OzV0NS01ejU7NVY1LTV4NTs1VTUtNXo1ajs1IiE1LWw1ZDUtNWdye2F+ZDU7NXQ1LTV2NTs1VjUtNXA1OzVVNS01fTVqOzUiIDUtbDVkNS01Z3J7YX5kNTs1dDUtNXE1OzVWNS01eDU7NVU1LTVxNWo7NSIvNS1sNWQ1LTV6YntjfjU7NXQ1LTVxNTs1VjUtNXg1OzVVNS01cTVqOzUiLjUtbDVkNS01Z3J7YX5kNTs1dDUtNXE1OzVWNS01cTU7NVU1LTV4NWo7NSEnNS1sNWQ1LTV6YntjfjU7NXQ1LTVxNTs1VjUtNXE1OzVVNS01eDVqOzUhJjUtbDVkNS01Z3J7YX5kNTs1dDUtNXo1OzVWNS01ejU7NVU1LTV4NWo7NSElNS1sNWQ1LTV6YntjfjU7NXQ1LTV6NTs1VjUtNXo1OzVVNS01eDVqag==";
   var items = [], answers = {}, idx = 0, revealedAt = null, lockSaved = true, stopped = false;
   var $ = function (id) { return document.getElementById(id); };
@@ -184,7 +187,7 @@ textarea { width: 100%; min-height: 90px; font: 0.75rem var(--font-mono); backgr
     var sm = document.createElement("small"); sm.textContent = "第 " + (idx + 1) + " / " + items.length + " 组";
     $("prompt").appendChild(sm); $("prompt").appendChild(document.createTextNode(it.prompt));
     if ($("vid").getAttribute("src") !== it.video) { $("vid").setAttribute("src", it.video); }
-    ["nat", "txt"].forEach(function (q) { ["A", "B"].forEach(function (v) { $(q + "-" + v).setAttribute("aria-pressed", a[q] === v ? "true" : "false"); }); });
+    ["nat", "txt"].forEach(function (q) { ["A", "T", "B"].forEach(function (v) { $(q + "-" + v).setAttribute("aria-pressed", a[q] === v ? "true" : "false"); }); });
     $("prev").disabled = idx === 0;
     $("next").disabled = !complete(a);
     $("next").textContent = idx === items.length - 1 ? "完成" : "下一组";
@@ -212,7 +215,7 @@ textarea { width: 100%; min-height: 90px; font: 0.75rem var(--font-mono); backgr
   function resultText() {
     var out = {};
     items.forEach(function (it) { var a = answers[it.pair]; if (a) out[it.pair] = { nat: a.nat, txt: a.txt, t: a.t }; });
-    return JSON.stringify({ quiz: "public-v1", answers: out, n: nDone(), revealedAt: revealedAt, lock: lockSaved ? "saved" : "unsaved" });
+    return JSON.stringify({ quiz: "public-v2", answers: out, n: nDone(), revealedAt: revealedAt, lock: lockSaved ? "saved" : "unsaved" });
   }
 
   function stopHere() {
@@ -251,26 +254,29 @@ textarea { width: 100%; min-height: 90px; font: 0.75rem var(--font-mono); backgr
     if (!lockSaved) $("resultNote").textContent = "注意：这个浏览器存不了数据，刷新或关掉后这一页就没了。请现在点“复制结果”，把内容发给邀请你的人。";
     var key = loadKey();
 
-    var tally = {}, att = [0, 0];
+    // Per question: [chose ours (or ground truth), about the same, chose the other].
+    function slot(v, ref) { return v === ref ? 0 : (v === "T" ? 1 : 2); }
+    var tally = {}, att = [0, 0, 0];
     items.forEach(function (it) {
       var k = key[it.pair], a = answers[it.pair];
       if (!k || !a) return;
       var ref = (k.A === "o" || k.A === "g") ? "A" : "B";
-      if (k.c === "a") { att[1]++; if (a.nat === ref) att[0]++; return; }
-      var id = k.s + "|" + k.c, t = tally[id] || (tally[id] = { nat: 0, txt: 0, n: 0 });
-      t.n++; if (a.nat === ref) t.nat++; if (a.txt === ref) t.txt++;
+      if (k.c === "a") { att[slot(a.nat, ref)]++; return; }
+      var id = k.s + "|" + k.c, t = tally[id] || (tally[id] = { nat: [0, 0, 0], txt: [0, 0, 0] });
+      t.nat[slot(a.nat, ref)]++; t.txt[slot(a.txt, ref)]++;
     });
     var tb = $("summary"); tb.textContent = "";
-    var hr = tb.insertRow(); ["场景", "对比", "更自然", "更符合文字"].forEach(function (h) { var th = document.createElement("th"); th.textContent = h; hr.appendChild(th); });
+    var hr = tb.insertRow(); ["场景", "对比", "更自然（我们 / 差不多 / 对方）", "更符合文字（我们 / 差不多 / 对方）"].forEach(function (h) { var th = document.createElement("th"); th.textContent = h; hr.appendChild(th); });
     [["pelvis", "m"], ["multi", "m"], ["pelvis", "f"], ["multi", "f"]].forEach(function (g) {
       var t = tally[g[0] + "|" + g[1]]; if (!t) return;
       var r = tb.insertRow();
       r.insertCell().textContent = SET[g[0]];
       r.insertCell().textContent = CMP[g[1]];
-      var c1 = r.insertCell(); c1.className = "num"; c1.textContent = t.nat + " / " + t.n;
-      var c2 = r.insertCell(); c2.className = "num"; c2.textContent = t.txt + " / " + t.n;
+      var c1 = r.insertCell(); c1.className = "num"; c1.textContent = t.nat.join(" / ");
+      var c2 = r.insertCell(); c2.className = "num"; c2.textContent = t.txt.join(" / ");
     });
-    $("attn").textContent = "另有 " + att[1] + " 组是检查题（真实动作 vs 加了 3 cm 抖动的真实动作），你在“更自然”里选中真实动作 " + att[0] + " / " + att[1] + " 次。";
+    var na = att[0] + att[1] + att[2];
+    $("attn").textContent = "另有 " + na + " 组是检查题（真实动作 vs 加了 3 cm 抖动的真实动作），你在“更自然”里选中真实动作 " + att[0] + " / " + na + " 次" + (att[1] ? "，选“差不多” " + att[1] + " 次" : "") + "。";
 
     var box = $("pairs"); box.textContent = "";
     items.forEach(function (it, i) {
@@ -287,10 +293,11 @@ textarea { width: 100%; min-height: 90px; font: 0.75rem var(--font-mono); backgr
       m.appendChild(document.createTextNode("你的选择："));
       [["nat", "更自然"], ["txt", "更符合文字"]].forEach(function (q, j) {
         if (j) m.appendChild(document.createTextNode("　"));
-        m.appendChild(document.createTextNode(q[1] + " " + (a[q[0]] || "—") + " "));
+        var v = a[q[0]];
+        m.appendChild(document.createTextNode(q[1] + " " + (v === "T" ? "" : (v || "—") + " ")));
         var s = document.createElement("span");
-        s.className = a[q[0]] === ref ? "ours" : "other";
-        s.textContent = "（" + (NAME[k[a[q[0]]]] || "—") + "）";
+        s.className = v === "T" ? "tie" : (v === ref ? "ours" : "other");
+        s.textContent = v === "T" ? "差不多" : "（" + (NAME[k[v]] || "—") + "）";
         m.appendChild(s);
       });
       var b = document.createElement("button"); b.type = "button"; b.textContent = "再看一遍";
@@ -322,7 +329,7 @@ textarea { width: 100%; min-height: 90px; font: 0.75rem var(--font-mono); backgr
   });
   document.addEventListener("keydown", function (e) {
     if ($("trial").classList.contains("hide") || e.target.tagName === "TEXTAREA") return;
-    var m = { "1": ["nat", "A"], "2": ["nat", "B"], "3": ["txt", "A"], "4": ["txt", "B"] }[e.key];
+    var m = { "1": ["nat", "A"], "2": ["nat", "T"], "3": ["nat", "B"], "4": ["txt", "A"], "5": ["txt", "T"], "6": ["txt", "B"] }[e.key];
     if (m) { e.preventDefault(); choose(m[0], m[1]); }
     else if (e.key === "Enter") { e.preventDefault(); next(); }
   });
